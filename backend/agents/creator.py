@@ -7,11 +7,11 @@ from ai_client import generate
 
 
 FORMAT_PROMPTS = {
-    ContentFormat.BLOG_POST: "a comprehensive, SEO-optimised blog post (800-1200 words) with headings, subheadings, and a call-to-action",
-    ContentFormat.SOCIAL_MEDIA: "a set of 3 social media posts: one for LinkedIn (professional, 150 words), one for Twitter/X (280 chars max), and one for Instagram (engaging caption with hashtags)",
-    ContentFormat.EMAIL_NEWSLETTER: "a professional email newsletter with subject line, preview text, greeting, 3-4 content sections, and a clear CTA",
-    ContentFormat.PRESS_RELEASE: "a professional press release following AP style with headline, dateline, lead paragraph, body, boilerplate, and contact info",
-    ContentFormat.SALES_COLLATERAL: "persuasive sales collateral with value propositions, customer pain points, solution overview, key benefits, and a closing CTA",
+    ContentFormat.BLOG_POST: "a comprehensive, SEO-optimised blog post (800-1200 words). STRUCTURE: Catchy H1, Intro with hook, 3-4 H2 subheadings with detailed paragraphs, bulleted lists for data/features, and a compelling H2 Conclusion with CTA.",
+    ContentFormat.SOCIAL_MEDIA: "a set of 3 distinct social media posts. 1. LinkedIn (Professional, thought-leadership style, 150-200 words). 2. Twitter/X (Punchy, thread-style or single tweet, max 280 chars). 3. Instagram (Visual-first caption, emojis, 10-15 relevant hashtags).",
+    ContentFormat.EMAIL_NEWSLETTER: "a high-converting email newsletter. STRUCTURE: Subject line (under 50 chars), Preview text, Personalized greeting, 3 sections of value-driven content, and 1 very clear CTA button/link.",
+    ContentFormat.PRESS_RELEASE: "a standard corporate press release. STRUCTURE: FOR IMMEDIATE RELEASE, Headline, Dateline (CITY, State), Strong Lead paragraph, Quote from executive, Body paragraphs, Boilerplate for TechCorp, and Media Contact info.",
+    ContentFormat.SALES_COLLATERAL: "a persuasive sales deck script or one-pager. STRUCTURE: The Problem, The Cost of Inaction, Our Solution (value props), Case Study/Proof point, 3 Key Benefits, and Next Steps.",
 }
 
 
@@ -42,25 +42,26 @@ Incorporate relevant data, statistics, and insights from it:
                 f"- {p}" for p in brief.key_points
             )
 
-        prompt = f"""You are an expert enterprise content creator for {brief.brand_name}.
+        prompt = f"""You are the Lead Content Strategist for {brief.brand_name}. 
+Your task is to generate high-quality, professional content that strictly adheres to the following brief.
 
-Create {format_instruction}.
+MANDATORY CONSTRAINTS:
+1. FORMAT: {format_instruction}
+2. TONE: {brief.tone}
+3. TOPIC: {brief.topic}
+4. AUDIENCE: {brief.audience}
+5. BRAND: All content must reflect {brief.brand_name}'s authority and expertise.
 
-Topic: {brief.topic}
-Target Audience: {brief.audience}
-Desired Tone: {brief.tone}
-{key_points_text}
 {knowledge_section}
+{key_points_text}
 
-Requirements:
-- Write in {brief.tone} tone throughout
-- Include relevant industry data and insights
-- Make it engaging and actionable for the target audience
-- Use proper formatting (headers, bullet points where appropriate)
-- Include a compelling headline/title
-- Ensure the content reflects {brief.brand_name}'s expertise
+ADDITIONAL RULES:
+- If format is Social Media, provide each post clearly labeled.
+- Use markdown formatting (headings, bolding, lists) to make the content scannable.
+- Do NOT include any meta-talk like "Sure, here is your content".
+- Output ONLY the final content.
 
-Output ONLY the content, no meta-commentary."""
+Strictly follow these instructions. Failure to adhere to the format or tone is unacceptable."""
 
         await self.emit(
             pipeline.id,

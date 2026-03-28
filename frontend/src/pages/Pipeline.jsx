@@ -48,6 +48,7 @@ export default function Pipeline() {
   const [pipeline, setPipeline] = useState(null);
   const [logs, setLogs] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('draft'); // 'draft', 'lang-xxx', 'channel-xxx'
   const logRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -191,11 +192,10 @@ export default function Pipeline() {
                 <label>Target Languages</label>
                 <div className="checkbox-group">
                   {LANGUAGES.map(l => (
-                    <label key={l} className={`checkbox-chip ${brief.target_languages.includes(l) ? 'selected' : ''}`}
+                    <div key={l} className={`checkbox-chip ${brief.target_languages.includes(l) ? 'selected' : ''}`}
                       onClick={() => toggleItem('target_languages', l)}>
-                      <input type="checkbox" checked={brief.target_languages.includes(l)} readOnly />
                       {l}
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -204,11 +204,10 @@ export default function Pipeline() {
                 <label>Target Channels</label>
                 <div className="checkbox-group">
                   {CHANNELS.map(c => (
-                    <label key={c} className={`checkbox-chip ${brief.target_channels.includes(c) ? 'selected' : ''}`}
+                    <div key={c} className={`checkbox-chip ${brief.target_channels.includes(c) ? 'selected' : ''}`}
                       onClick={() => toggleItem('target_channels', c)}>
-                      <input type="checkbox" checked={brief.target_channels.includes(c)} readOnly />
                       {c.charAt(0).toUpperCase() + c.slice(1)}
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -319,11 +318,77 @@ export default function Pipeline() {
               </div>
             </div>
 
-            <div className="glass-card animate-slide-up stagger-2">
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 12 }}>Generated Content</h3>
-              <div className="content-preview">
-                {pipeline?.draft_content || 'Content will appear here once the Creator agent completes…'}
+            <div className="glass-card animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Generated Content</h3>
+                
+                {/* Tab Switcher */}
+                <div className="preview-tabs">
+                  <button 
+                    className={`tab-btn ${activeTab === 'draft' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('draft')}
+                  >
+                    Draft
+                  </button>
+                  
+                  {pipeline?.localized_versions?.map(v => (
+                    <button 
+                      key={v.language}
+                      className={`tab-btn ${activeTab === `lang-${v.language}` ? 'active' : ''}`}
+                      onClick={() => setActiveTab(`lang-${v.language}`)}
+                    >
+                      {v.language}
+                    </button>
+                  ))}
+                  
+                  {pipeline?.distributions?.map(d => (
+                    <button 
+                      key={d.channel}
+                      className={`tab-btn ${activeTab === `channel-${d.channel}` ? 'active' : ''}`}
+                      onClick={() => setActiveTab(`channel-${d.channel}`)}
+                    >
+                      {d.channel.charAt(0).toUpperCase() + d.channel.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              <div className="content-preview">
+                {(() => {
+                  if (activeTab === 'draft') return pipeline?.draft_content || 'Creating draft content...';
+                  if (activeTab.startsWith('lang-')) {
+                    const lang = activeTab.replace('lang-', '');
+                    return pipeline?.localized_versions?.find(v => v.language === lang)?.content || 'Translating...';
+                  }
+                  if (activeTab.startsWith('channel-')) {
+                    const ch = activeTab.replace('channel-', '');
+                    return pipeline?.distributions?.find(d => d.channel === ch)?.formatted_content || 'Formatting for channel...';
+                  }
+                  return 'Select a tab...';
+                })()}
+              </div>
+
+              {/* Metadata / Notes */}
+              {activeTab.startsWith('lang-') && (
+                <div className="preview-notes" style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--cyan-400)', marginBottom: 4 }}>CULTURAL NOTES</div>
+                  {pipeline?.localized_versions?.find(v => `lang-${v.language}` === activeTab)?.cultural_notes?.map((n, i) => (
+                    <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>• {n}</div>
+                  ))}
+                </div>
+              )}
+              {activeTab.startsWith('channel-') && (
+                <div className="preview-notes" style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--emerald-400)', marginBottom: 4 }}>PLATFORM METADATA</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                    {Object.entries(pipeline?.distributions?.find(d => `channel-${d.channel}` === activeTab)?.metadata || {}).map(([k, v]) => (
+                      <div key={k} style={{ fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
+                        <span style={{ textTransform: 'capitalize' }}>{k.replace('_', ' ')}:</span> <span style={{ color: 'var(--text-secondary)' }}>{Array.isArray(v) ? v.join(', ') : v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -338,8 +403,50 @@ export default function Pipeline() {
         </div>
       )}
 
-      {/* Inline spin animation */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 1s linear infinite; }`}</style>
+      {/* Inline styles */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } } 
+        .spin { animation: spin 1s linear infinite; }
+        
+        .preview-tabs {
+          display: flex;
+          gap: 4px;
+          background: rgba(0,0,0,0.2);
+          padding: 3px;
+          border-radius: 8px;
+          border: 1px solid var(--border-subtle);
+        }
+        
+        .tab-btn {
+          background: transparent;
+          border: none;
+          color: var(--text-tertiary);
+          padding: 4px 10px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .tab-btn:hover {
+          color: var(--text-secondary);
+          background: rgba(255,255,255,0.05);
+        }
+        
+        .tab-btn.active {
+          color: white;
+          background: var(--purple-500);
+          box-shadow: 0 2px 8px rgba(139,92,246,0.3);
+        }
+        
+        .preview-notes {
+          padding: 12px;
+          background: rgba(0,0,0,0.2);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-subtle);
+        }
+      `}</style>
     </div>
   );
 }

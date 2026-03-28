@@ -40,58 +40,38 @@ class DistributorAgent(BaseAgent):
             pipeline.id, "log", f"Formatting content for: {channels_str}"
         )
 
-        prompt = f"""You are a multi-channel content distribution specialist for {brief.brand_name}.
-Adapt the following content for each target channel. Each channel has different requirements.
+        prompt = f"""You are a senior social media and distribution specialist for {brief.brand_name}.
+Your mission is to adapt the core content for each specific target channel with surgery-like precision.
 
-TARGET CHANNELS:
+CHANNELS TO OPTIMIZE FOR:
 {json.dumps({ch.value: CHANNEL_META.get(ch, {}) for ch in channels}, indent=2)}
 
-ORIGINAL CONTENT:
+SOURCE CONTENT:
 {content[:3000]}
 
-For EACH channel, create an optimised version:
-- Website/Blog: full article with SEO meta description
-- Twitter/X: punchy tweet, max 280 chars, with hashtags
-- LinkedIn: professional post with key insights, CTA
-- Email: subject line + preview + formatted body
-- Internal: concise summary for team comms
-- Instagram: visual-first caption with hashtags
+STRICT FORMATTING GUIDELINES:
+1. Twitter/X: MUST BE UNDER 280 CHARACTERS. Include 2-3 relevant hashtags. Make it a hook that drives a click.
+2. LinkedIn: Professional tone. Use a "scroll-stoppping" opening sentence. Include 3-4 bullet points of value. End with a CTA.
+3. Website/Blog: Full, rich formatting. Include an SEO-optimized meta description (max 160 chars) at the start.
+4. Email: Subject line MUST be catchy. Body must be structured for quick scanning.
+5. Internal: Summary style. Focus on "Why this matters to us".
+6. Instagram: Focus on the "vibe" and engagement. Use bullet points and lots of hashtags.
 
-Respond in STRICT JSON:
+Response Format (MANDATORY JSON):
 {{
   "channels": [
     {{
-      "channel": "<channel_value>",
-      "formatted_content": "<the formatted content for this channel>",
-      "metadata": {{"char_count": <n>, "hashtags": ["..."], "subject_line": "..." }}
+      "channel": "<channel_id>",
+      "formatted_content": "<platform-specific text>",
+      "metadata": {{"char_count": <n>, "hashtags": ["..."], "subject_line": "...", "meta_description": "..." }}
     }}
   ]
 }}
 
-Output ONLY valid JSON, no markdown fences."""
+Output ONLY valid JSON. No preamble. No markdown code blocks."""
 
         raw = await generate(prompt)
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1]
-        if cleaned.endswith("```"):
-            cleaned = cleaned.rsplit("```", 1)[0]
-        cleaned = cleaned.strip()
-
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError:
-            # Fallback
-            data = {
-                "channels": [
-                    {
-                        "channel": ch.value,
-                        "formatted_content": f"[{ch.value} version of content]",
-                        "metadata": {"char_count": len(content)},
-                    }
-                    for ch in channels
-                ]
-            }
+        data = self._parse_json(raw)
 
         for ch_data in data.get("channels", []):
             try:

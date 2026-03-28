@@ -30,45 +30,30 @@ class LocalizerAgent(BaseAgent):
                 pipeline.id, "log", f"Localising to {lang}…"
             )
 
-            prompt = f"""You are an expert content localiser for {brief.brand_name}.
-Translate and culturally adapt the following content into {lang}.
+            prompt = f"""You are an elite multilingual content localizer for {brief.brand_name}.
+Your task is to translate and culturally adapt the provided content into {lang}.
 
-RULES:
-- Maintain the original meaning, intent, and brand voice
-- Keep "{brief.brand_name}" un-translated (it's a brand name)
-- Adapt cultural references, idioms, and metaphors for the {lang}-speaking market
-- Keep technical terms in their commonly-used form in {lang}
-- Preserve formatting (headers, bullets, etc.)
-- Adjust date/number formats to local convention
+STRICT REQUIREMENTS:
+1. LANGUAGE: The output MUST be in {lang}. This is an absolute requirement.
+2. VOICE: Maintain the "{brief.tone}" brand voice in the target language.
+3. BRAND: Keep the brand name "{brief.brand_name}" in its original English form.
+4. FORMAT: Preserve all markdown formatting (headers, bullets, bolding) exactly as in the source.
+5. ADAPTATION: Do not just translate words; adapt idioms, date formats, and cultural nuances for the {lang} market.
 
-CONTENT:
+CONTENT TO TRANSLATE (in English):
 {content[:3500]}
 
-Respond in STRICT JSON:
+Respond ONLY in this STRICT JSON format:
 {{
-  "translated_content": "<the full translated content>",
-  "cultural_notes": ["<note about a cultural adaptation you made>"]
+  "translated_content": "<the full {lang} translation>",
+  "cultural_notes": ["<specific note about an adaptation made for {lang}>"]
 }}
 
-Output ONLY valid JSON, no markdown fences."""
+Note: If the language is Hindi, use Devanagari script.
+Output ONLY the JSON object. No markdown code blocks."""
 
             raw = await generate(prompt)
-            cleaned = raw.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[1]
-            if cleaned.endswith("```"):
-                cleaned = cleaned.rsplit("```", 1)[0]
-            cleaned = cleaned.strip()
-
-            try:
-                data = json.loads(cleaned)
-            except json.JSONDecodeError:
-                data = {
-                    "translated_content": f"[{lang} translation of the content]",
-                    "cultural_notes": [
-                        f"Adapted for {lang}-speaking audience"
-                    ],
-                }
+            data = self._parse_json(raw)
 
             loc = LocalizedContent(
                 language=lang,

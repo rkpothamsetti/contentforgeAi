@@ -30,72 +30,45 @@ class IntelligenceAgent(BaseAgent):
             pipeline.id, "log", "Analysing content performance patterns…"
         )
 
-        prompt = f"""You are a content strategist and data analyst for {brief.brand_name}.
-Analyse the following content and engagement metrics, then provide strategic recommendations.
+        prompt = f"""You are the Lead Growth Strategist for {brief.brand_name}. 
+Your task is to analyze the following content and engagement metrics to provide high-impact strategic recommendations.
 
-CONTENT TOPIC: {brief.topic}
-FORMAT: {brief.format.value}
-AUDIENCE: {brief.audience}
+CONTEXT:
+Topic: {brief.topic}
+Format: {brief.format.value}
+Target Audience: {brief.audience}
 
 CONTENT PREVIEW:
 {content[:1500] if content else "No content available"}
 
-ENGAGEMENT METRICS (simulated from similar past content):
+SIMULATED PERFORMANCE DATA:
 {json.dumps(simulated_metrics, indent=2)}
 
-Provide strategic analysis and recommendations in STRICT JSON:
+Response Format (MANDATORY JSON):
 {{
   "content_score": <1-100>,
-  "engagement_analysis": "<2-3 sentence analysis of the engagement metrics>",
+  "engagement_analysis": "<strategic analysis of why these metrics look the way they do>",
   "recommendations": [
     {{
       "category": "timing" | "format" | "targeting" | "topic" | "distribution",
       "priority": "high" | "medium" | "low",
-      "recommendation": "<specific actionable recommendation>",
-      "expected_impact": "<expected improvement>"
+      "recommendation": "<very specific actionable step>",
+      "expected_impact": "<quantified expected improvement>"
     }}
   ],
   "optimal_posting": {{
-    "best_days": ["<day>"],
-    "best_times": ["<time range>"],
-    "frequency": "<recommended posting frequency>"
+    "best_days": ["Monday", "Wednesday"],
+    "best_times": ["10:00 AM", "4:00 PM"],
+    "frequency": "Daily / Weekly / Monthly"
   }},
-  "audience_insights": "<2-3 sentence insight about the target audience>",
-  "trending_topics": ["<related trending topic to explore>"]
+  "audience_insights": "<deep insight into audience behavior>",
+  "trending_topics": ["<related high-growth topic>"]
 }}
 
-Output ONLY valid JSON, no markdown fences."""
+Output ONLY valid JSON. No markdown fences. No introduction. No conclusion."""
 
         raw = await generate(prompt)
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1]
-        if cleaned.endswith("```"):
-            cleaned = cleaned.rsplit("```", 1)[0]
-        cleaned = cleaned.strip()
-
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError:
-            data = {
-                "content_score": 78,
-                "engagement_analysis": "Content shows solid engagement with room for improvement in click-through rate.",
-                "recommendations": [
-                    {
-                        "category": "timing",
-                        "priority": "high",
-                        "recommendation": "Publish during peak hours (9-11 AM local time)",
-                        "expected_impact": "15-20% increase in impressions",
-                    }
-                ],
-                "optimal_posting": {
-                    "best_days": ["Tuesday", "Thursday"],
-                    "best_times": ["9:00-11:00 AM", "2:00-4:00 PM"],
-                    "frequency": "2-3 times per week",
-                },
-                "audience_insights": "Target audience engages most with data-driven content.",
-                "trending_topics": ["AI in Enterprise", "Digital Transformation"],
-            }
+        data = self._parse_json(raw)
 
         await self.emit(
             pipeline.id,

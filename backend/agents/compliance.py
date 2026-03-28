@@ -20,28 +20,19 @@ class ComplianceAgent(BaseAgent):
         if not content:
             raise ValueError("No draft content to review")
 
-        prompt = f"""You are a senior compliance reviewer for {brief.brand_name}.
-Review the following content for brand compliance, legal issues, and regulatory concerns.
+        prompt = f"""You are the Chief Compliance & Quality Officer for {brief.brand_name}. 
+Your task is to perform a rigorous compliance and brand alignment audit of the following content.
 
-BRAND GUIDELINES:
-- Tone: {brief.tone} (flag deviations)
-- Brand name must be used correctly as "{brief.brand_name}"
-- No competitor mentions or unfavourable comparisons
-- No unsubstantiated claims (e.g. "best in the world", "#1")
-- No discriminatory or exclusionary language
-- Must include proper disclaimers for any data/statistics cited
+AUDIT CRITERIA:
+1. BRAND TONE: Must be "{brief.tone}". Flag any sentences that deviate.
+2. ACCURACY: Content must correctly reference {brief.brand_name}.
+3. PROHIBITED: No competitor names, no "best in class" without proof, no offensive language.
+4. LEGAL: Ensure any statistics or claims have a supporting context or disclaimer.
 
-LEGAL & REGULATORY:
-- No misleading statements or false promises
-- Financial claims must have disclaimers
-- Health/medical claims need appropriate caveats
-- Data privacy: no collection of personal info without consent mention
-- Copyright: no plagiarised or unattributed content
-
-CONTENT TO REVIEW:
+CONTENT TO AUDIT:
 {content[:4000]}
 
-Respond in STRICT JSON format:
+Response Format (MANDATORY JSON):
 {{
   "overall_status": "pass" | "warning" | "fail",
   "score": <0-100>,
@@ -49,55 +40,41 @@ Respond in STRICT JSON format:
     {{
       "category": "brand_tone" | "legal" | "regulatory" | "terminology",
       "severity": "pass" | "warning" | "fail",
-      "description": "<what the issue is>",
+      "description": "<detailed explanation of the issue>",
       "suggestion": "<how to fix it>",
-      "location": "<quote the problematic text>"
+      "location": "<exact quote from the text>"
     }}
   ],
-  "auto_fixes_applied": <number of minor fixes you would auto-apply>,
-  "reviewed_content": "<the full content with any minor fixes applied>"
+  "auto_fixes_applied": <int>,
+  "reviewed_content": "<the full content with minor fixes applied>"
 }}
 
-If the content passes review, still provide at least 1-2 minor observations.
-Output ONLY valid JSON, no markdown fences."""
+If the content is perfect, provide 1-2 positive observations in the findings with severity "pass".
+Output ONLY valid JSON. No markdown code blocks. No preamble."""
 
         await self.emit(
             pipeline.id, "log", "Scanning for brand, legal & regulatory compliance…"
         )
 
         raw = await generate(prompt)
+        data = self._parse_json(raw)
 
-        # Parse the response — strip markdown fences if present
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1]
-        if cleaned.endswith("```"):
-            cleaned = cleaned.rsplit("```", 1)[0]
-        cleaned = cleaned.strip()
+        findings = []
+        for f in data.get("findings", []):
+            try:
+                # Ensure all required fields exist with defaults to avoid Pydantic errors
+                findings.append(ComplianceFinding(
+                    category=f.get("category", "brand_tone"),
+                    severity=ComplianceLevel(f.get("severity", "pass").lower()),
+                    description=f.get("description", "Observation made during audit"),
+                    suggestion=f.get("suggestion", "No action required"),
+                    location=f.get("location", "")
+                ))
+            except Exception:
+                continue
 
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError:
-            # Fallback: create a pass report
-            data = {
-                "overall_status": "pass",
-                "score": 85,
-                "findings": [
-                    {
-                        "category": "brand_tone",
-                        "severity": "pass",
-                        "description": "Content aligns with brand guidelines",
-                        "suggestion": "No changes needed",
-                        "location": "",
-                    }
-                ],
-                "auto_fixes_applied": 0,
-                "reviewed_content": content,
-            }
-
-        findings = [ComplianceFinding(**f) for f in data.get("findings", [])]
         report = ComplianceReport(
-            overall_status=ComplianceLevel(data.get("overall_status", "pass")),
+            overall_status=ComplianceLevel(data.get("overall_status", "pass").lower()),
             score=data.get("score", 85),
             findings=findings,
             auto_fixes_applied=data.get("auto_fixes_applied", 0),
