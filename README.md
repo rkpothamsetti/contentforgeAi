@@ -200,10 +200,15 @@ curl -X POST http://localhost:8000/api/pipeline/start \
 
 ---
 
-## 📸 Screenshots
+## 🎬 Hackathon Deliverables
 
-### Dashboard
-Analytics overview with KPI cards, time-series comparison charts, and recent pipeline feed.
+- **System Architecture**: [architecture.png](file:///C:/Users/krish/.gemini/antigravity/brain/272670fe-98c1-482d-963d-63e5714064af/contentforge_architecture_diagram_1774704356032.png)
+- **Functional Prototype**: Accessible via local dev server.
+- **GitHub Repository**: [rkpothamsetti/contentforgeAi](https://github.com/rkpothamsetti/contentforgeAi)
+- **Demo Walkthrough**: [walkthrough.md](file:///C:/Users/krish/.gemini/antigravity/brain/272670fe-98c1-482d-963d-63e5714064af/walkthrough.md)
+
+---
+*Developed by Krishna Pothamsetti*
 
 ### Content Pipeline
 Create content briefs with topic, audience, format, tone, target languages, and channels. Real-time pipeline tracker shows progress through all 5 agent stages.
